@@ -1,0 +1,15 @@
+header{background-color: yellow;
+    text-align: center;
+    padding-top: 2px;
+    background-image: url(homerlogorev.png); 
+    background-size: 20% 150%;
+    background-repeat: no-repeat; 
+    padding-bottom: 15px;color: 
+    brown;}
+h2 {border-bottom: 2px solid cadetblue;
+    text-align: center; color: brown;}
+div {margin-left: 1200px;}
+p {border-bottom: 2px solid cadetblue; font-size: medium; font-weight: bold;}
+a{font-size: large;}
+dt {text-align: center; font-size: large; font-weight: bold; color: blue;}
+footer {text-align: center;}
