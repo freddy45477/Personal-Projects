@@ -5,6 +5,10 @@ import face_recognition
 #import os library to use the operating system functions
 import os
 
+import datetime  # to get the current date and time for saving images
+import threading  # to run the webcam in a separate thread
+latest_frame = None  # global variable to store the latest frame
+lock = threading.Lock() # lock to ensure thread safety when accessing the latest_frame variable
 
 def load_known_faces(known_faces_dir):
     known_face_encodings = [] #list to store face encodings
@@ -38,19 +42,44 @@ def load_known_faces(known_faces_dir):
 def webcam():
 
     camera = cv2.VideoCapture(0) # make a varibleOpen the first camera
-    #if the webcam is not opened, camera becomes cv2.VideoCapture(1) and opens the second camera
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # set the width of the frame
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480) #set the height of the frame
+
+    for i in range(20):  # try to open the camera 10 times
+        ret, frame = camera.read()
+    
     if not camera.isOpened():
         camera = cv2.VideoCapture(1)
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # set the width of the frame
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480) #set the height of the frame
+
+        for i in range(20):  # try to open the camera 10 times
+            ret, frame = camera.read()
     #returns the second camera
     return camera
     #infinite loop to keep the webcam open
 
-def capturedFrame(camera, known_face_encodings, known_faces_names):
+def capture_frames(camera):
+    global latest_frame  # use the global variable to store the latest framew
     while True:
-        #ret is boolean value that tells if the frame is read correctly
-        #frame is set to the frame captured by the camera
-        #read() function returns two values, ret and frame
+        #read the frame from the camera
         ret, frame = camera.read()
+        if ret: #if ret is correct
+            with lock: #ensure thread safety when updating the latest frame
+                latest_frame = frame  # update the global variable with the latest frame
+
+def face_recogniton_loop(known_face_encodings, known_faces_names):
+    saved_unknown = False  # flag to indicate if an unknown face image has been saved
+    unknown_face_detected = False #flag to tell if an unknown face is detected
+    
+    while True:
+        with lock:
+            #if lates frame is none, the latest frame is not available
+            if latest_frame is None:
+                continue
+            #create a copy of the latest frame to avoid modifying the original frame
+            frame = latest_frame.copy()
+
         #CVTColor function converts the frame from BGR to RGB color space
         #face_recognition library works with RGB color space
         #so we need to convert the frame to RGB color space
@@ -69,7 +98,7 @@ def capturedFrame(camera, known_face_encodings, known_faces_names):
         for (top, right, bottom, left), face_encoding in zip(face_locations, face_encoding):
             #compare the face encodings with the known face encodings to see if the face matches
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-            if matches:
+            if True in matches:
                 #if the face matches, face distance is calculated to find the closest match
                 #face_distance function returns a list of distances between the face encodings and the known face
                 face_distance = face_recognition.face_distance(known_face_encodings, face_encoding)
@@ -77,8 +106,23 @@ def capturedFrame(camera, known_face_encodings, known_faces_names):
                 smallest_distance_index = face_distance.argmin()
                 #get the name of the person from the known faces names list
                 name = known_faces_names[smallest_distance_index]
-            else: "Unknown" #if the face does not match with any known faces, name is unkown
-            #draw a rectangle around the face in the frame
+            else:
+                name = "Unknown"
+                unknown_face_detected = True  # set the flag to indicate an unknown face is detected
+                #if saved_unknown is False, it means that an unknown face has not been saved yet
+                if saved_unknown == False:
+                    #draw a rectangle around the face in the frame
+                    face_image = frame[top:bottom,left:right]
+                    #save the image of the unknown face with a timestamp
+                    filename = datetime.datetime.now().strftime("unknown_face_%Y-%m-%d_%H-%M-%S")+".jpg"
+                    #use the unknown_Faces durectory to save the image
+                    filepath = os.path.join("unknown_faces", filename)
+                    #imwrite function saves the image to the specified filepath
+                    print(f"Saving unknown face image to {filepath}")
+                    save_image = cv2.imwrite(filepath, face_image)
+                    saved_unknown = True
+
+           #draw a rectangle around the face in the frame
             #top, left are the coordinates of the top left corner of the rectangle
             #right, bottom are the coordinates of the bottom right corner of the rectangle
             #(0,255,0) is the color of the rectangle in BGR format (green in this case)
@@ -95,7 +139,10 @@ def capturedFrame(camera, known_face_encodings, known_faces_names):
             name_label = cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
 
 
-
+        #if no unknown face is detected, set the flag to False
+        #this is to ensure that the flag is reset when no unknown face is detected in the current frame
+        if unknown_face_detected == False:
+            saved_unknown = False
         #imshow allows to show a window with the name "webcam" and the frame captured by the camera
         cv2.imshow("webcam", frame)
 
@@ -104,15 +151,28 @@ def capturedFrame(camera, known_face_encodings, known_faces_names):
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     
-    camera.release()  # release the camera so other resources can use it
     cv2.destroyAllWindows() #close all opencv windows
 
-known_face_encodings, known_faces_names = load_known_faces("known_faces")
+def main():
 
-cam = webcam()
-if cam.isOpened():
-    capturedFrame(cam, known_face_encodings, known_faces_names)
-else: print("no camera found")
+    known_face_encodings, known_faces_names = load_known_faces("known_faces")
+
+    cam = webcam()
+    if cam.isOpened():
+        #start a thread to capture frames from the camera
+        #.Thread creates a new thread to run the capture frames function
+        #args is for passing the camera object to the function
+        #daemon=True makes the thread a daemon thread, which means it will exit when the main program exits
+        thread = threading.Thread(target=capture_frames, args=(cam,), daemon = True)
+        #start the thread to capture frames
+        thread.start()
+
+        face_recogniton_loop(known_face_encodings, known_faces_names)
+        cam
+    else: print("no camera found")
+
+if __name__ == "__main__":
+    main()  # run the main function to start the program
 
 
 
