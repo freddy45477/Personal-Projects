@@ -9,8 +9,11 @@ import datetime  # to get the current date and time for saving images
 import threading  # to run the webcam in a separate thread
 latest_frame = None  # global variable to store the latest frame
 lock = threading.Lock() # lock to ensure thread safety when accessing the latest_frame variable
+last_unknown_face_path = "" #empty to hold the path of the saved unknown
 
 def load_known_faces(known_faces_dir):
+
+    #check if the known faces directory exists
     known_face_encodings = [] #list to store face encodings
     known_faces_names = [] #list to store names of the faces
 
@@ -29,29 +32,31 @@ def load_known_faces(known_faces_dir):
                 if matches:
                     print("face already exists in the database")
                     continue  # skip this image if the face already exists
-                else: 
+                else:
                     #adds the new face encoding to the list of known face encodings
                     known_face_encodings.append(new_encoding)
                     name = os.path.splitext(filename)[0]  # get the name from the filename
                     known_faces_names.append(name) #adds the name to the list of known faces names
-            else: 
+            else:
                 print(f"No face found in {filename}, skipping...")
     return known_face_encodings, known_faces_names
+
+
 
 #make a funciton for opening the webcam
 def webcam():
 
     camera = cv2.VideoCapture(0) # make a varibleOpen the first camera
-    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # set the width of the frame
-    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480) #set the height of the frame
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 480)  # set the width of the frame
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 320) #set the height of the frame
 
     for i in range(20):  # try to open the camera 10 times
         ret, frame = camera.read()
-    
+   
     if not camera.isOpened():
         camera = cv2.VideoCapture(1)
-        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # set the width of the frame
-        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480) #set the height of the frame
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 480)  # set the width of the frame
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 320) #set the height of the frame
 
         for i in range(20):  # try to open the camera 10 times
             ret, frame = camera.read()
@@ -60,7 +65,7 @@ def webcam():
     #infinite loop to keep the webcam open
 
 def capture_frames(camera):
-    global latest_frame  # use the global variable to store the latest framew
+    global latest_frame  # use the global variable to store the latest frame
     while True:
         #read the frame from the camera
         ret, frame = camera.read()
@@ -71,7 +76,7 @@ def capture_frames(camera):
 def face_recogniton_loop(known_face_encodings, known_faces_names):
     saved_unknown = False  # flag to indicate if an unknown face image has been saved
     unknown_face_detected = False #flag to tell if an unknown face is detected
-    
+   
     while True:
         with lock:
             #if lates frame is none, the latest frame is not available
@@ -79,6 +84,7 @@ def face_recogniton_loop(known_face_encodings, known_faces_names):
                 continue
             #create a copy of the latest frame to avoid modifying the original frame
             frame = latest_frame.copy()
+            clean_frame = latest_frame.copy() #use this to save faces without rectangles
 
         #CVTColor function converts the frame from BGR to RGB color space
         #face_recognition library works with RGB color space
@@ -112,7 +118,8 @@ def face_recogniton_loop(known_face_encodings, known_faces_names):
                 #if saved_unknown is False, it means that an unknown face has not been saved yet
                 if saved_unknown == False:
                     #draw a rectangle around the face in the frame
-                    face_image = frame[top:bottom,left:right]
+                    face_image = clean_frame[top:bottom, left:right]
+                    
                     #save the image of the unknown face with a timestamp
                     filename = datetime.datetime.now().strftime("unknown_face_%Y-%m-%d_%H-%M-%S")+".jpg"
                     #use the unknown_Faces durectory to save the image
@@ -121,6 +128,9 @@ def face_recogniton_loop(known_face_encodings, known_faces_names):
                     print(f"Saving unknown face image to {filepath}")
                     save_image = cv2.imwrite(filepath, face_image)
                     saved_unknown = True
+
+                    global last_unknown_face_path 
+                    last_unknown_face_path = filepath 
 
            #draw a rectangle around the face in the frame
             #top, left are the coordinates of the top left corner of the rectangle
@@ -138,7 +148,6 @@ def face_recogniton_loop(known_face_encodings, known_faces_names):
             #1 is the thickness of the text
             name_label = cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
 
-
         #if no unknown face is detected, set the flag to False
         #this is to ensure that the flag is reset when no unknown face is detected in the current frame
         if unknown_face_detected == False:
@@ -148,10 +157,62 @@ def face_recogniton_loop(known_face_encodings, known_faces_names):
 
         #waitkey waits for a key press for 1 millisecond
         #if 'q' is pressed, the loop breaks and webcam closed
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
             break
-    
+        elif key == ord('r'):
+            if face_locations:
+                known_face_encodings, known_faces_names = register_face(clean_frame, face_locations, known_face_encodings, known_faces_names)
+           
+
+
     cv2.destroyAllWindows() #close all opencv windows
+
+def register_face(current_frame, face_locations, known_face_encodings, known_faces_names):
+    global last_unknown_face_path
+    #known faces directory
+    known_faces_dir = "known_faces"
+    #unknown faces directory
+    #if no faces are detected in the frame
+    if face_locations == []:
+        print("no face detected")
+        return known_face_encodings, known_faces_names
+   
+    #get the face coordinates
+    top, right, bottom, left = face_locations[0]
+    #crop the face region from the current frame using those coordinate
+    face_image = current_frame[top:bottom, left:right]
+
+    #gets the face encoding for the detected face
+    face_encoding = face_recognition.face_encodings(current_frame, [face_locations[0]])[0]
+    #compares the face encoding with the known encoding
+    matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+    #if matches, face is already registered
+    if True in matches:
+        print("face is already registered")
+    else:
+        #else ask the user to put their name and append their encoding and name
+        new_name = input("enter name: ")
+        known_face_encodings.append(face_encoding)
+        known_faces_names.append(new_name)
+        if not os.path.exists("known_faces"):
+            os.makedirs("known_faces")
+        
+        original_filename = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+        unknown_path = os.path.join("unknown_faces", original_filename)
+
+        if last_unknown_face_path and os.path.exists(last_unknown_face_path):
+            os.remove(last_unknown_face_path)
+            last_unknown_face_path = None  # reset the path after removing the file
+
+        #makes a image file on the name they put and puts in the known faces directory
+        filename = f"{new_name}.jpg"
+        filepath = os.path.join("known_faces", filename)
+        cv2.imwrite(filepath, face_image)
+        print("new face registered")
+   
+    return known_face_encodings, known_faces_names
+
 
 def main():
 
@@ -173,6 +234,7 @@ def main():
 
 if __name__ == "__main__":
     main()  # run the main function to start the program
+
 
 
 

@@ -3,7 +3,6 @@ import threading #threading is used to run the webcam in a separate thread
 import datetime # datetime is used to get current date and time
 import face_recognition #face_recognition is used for face detection and recognition
 
-known_faces_dir = "known_faces"  # directory containing known faces
 
 latest_frame = None#global variable to store latest frame
 #function opens the camera
