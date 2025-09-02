@@ -5,11 +5,20 @@ import face_recognition
 #import os library to use the operating system functions
 import os
 
-import datetime  # to get the current date and time for saving images
+import datetime
+from datetime import date # to get the current date and time for saving images
 import threading  # to run the webcam in a separate thread
 latest_frame = None  # global variable to store the latest frame
 lock = threading.Lock() # lock to ensure thread safety when accessing the latest_frame variable
 last_unknown_face_path = "" #empty to hold the path of the saved unknown
+from db_connection import (
+    insert_patients,
+    insert_health_issues,
+    insert_symptom,
+    insert_medication,
+    insert_contact,
+    insert_relatives_contacts
+)
 
 def load_known_faces(known_faces_dir):
 
@@ -192,11 +201,64 @@ def register_face(current_frame, face_locations, known_face_encodings, known_fac
         print("face is already registered")
     else:
         #else ask the user to put their name and append their encoding and name
-        new_name = input("enter name: ")
+        new_name = input("enter full name: ")
         known_face_encodings.append(face_encoding)
         known_faces_names.append(new_name)
         if not os.path.exists("known_faces"):
             os.makedirs("known_faces")
+        
+        first_name = new_name.split()[0]
+        last_name = new_name.split()[-1]
+        middle_name = ""
+
+        personal_id = insert_patients(
+            first_name=first_name,
+            middle_name=middle_name,
+            last_name=last_name,
+            age=0,
+            sex="Other",
+            sex_other=None,
+            health_condition="Healthy",
+            last_login=None
+        )
+        print(f"New patient inserted with ID {personal_id}")
+        
+        insert_health_issues(
+            personal_id,
+            issue_name="Healthy",
+            diagnosed_date=date.today(),
+            status="Active",
+            description="Initial record"
+        )
+
+        insert_medication(
+            personal_id,
+            medication_name="None",
+            dosage="N/A",
+            frequency="N/A",
+            start_date=None,
+            end_date=None,
+            status="ongoing",
+            type="prescribed",
+            notes="Initial record"
+        )
+
+        insert_contact(
+            personal_id,
+            phone_number="N/A",
+            email="N/A"
+        )
+
+        insert_relatives_contacts(
+            personal_id=personal_id,
+            relative_personal_id=None,
+            relative_first_name="N/A",
+            relative_last_name="N/A",
+            relationship_type="N/A",
+            phone_number="N/A",
+            email="N/A"
+        )
+
         
         original_filename = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
         unknown_path = os.path.join("unknown_faces", original_filename)
@@ -215,7 +277,7 @@ def register_face(current_frame, face_locations, known_face_encodings, known_fac
 
 
 def main():
-
+    known_faces_dir = r"C:\Users\hoang\OneDrive\Documents\Personal_Projects\facial_recognition_project\known_faces"
     known_face_encodings, known_faces_names = load_known_faces("known_faces")
 
     cam = webcam()
@@ -234,10 +296,6 @@ def main():
 
 if __name__ == "__main__":
     main()  # run the main function to start the program
-
-
-
-
 
 
 
