@@ -13,11 +13,11 @@ lock = threading.Lock() # lock to ensure thread safety when accessing the latest
 last_unknown_face_path = "" #empty to hold the path of the saved unknown
 from db_connection import (
     insert_patients,
-    insert_health_issues,
-    insert_symptom,
-    insert_medication,
     insert_contact,
     insert_relatives_contacts
+)
+from patient_input import (
+    collect_patients_info
 )
 
 def load_known_faces(known_faces_dir):
@@ -210,7 +210,8 @@ def register_face(current_frame, face_locations, known_face_encodings, known_fac
         first_name = new_name.split()[0]
         last_name = new_name.split()[-1]
         middle_name = ""
-
+    
+    #default input
         personal_id = insert_patients(
             first_name=first_name,
             middle_name=middle_name,
@@ -218,31 +219,12 @@ def register_face(current_frame, face_locations, known_face_encodings, known_fac
             age=0,
             sex="Other",
             sex_other=None,
-            health_condition="Healthy",
             last_login=None
         )
+
+
         print(f"New patient inserted with ID {personal_id}")
         
-        insert_health_issues(
-            personal_id,
-            issue_name="Healthy",
-            diagnosed_date=date.today(),
-            status="Active",
-            description="Initial record"
-        )
-
-        insert_medication(
-            personal_id,
-            medication_name="None",
-            dosage="N/A",
-            frequency="N/A",
-            start_date=None,
-            end_date=None,
-            status="ongoing",
-            type="prescribed",
-            notes="Initial record"
-        )
-
         insert_contact(
             personal_id,
             phone_number="N/A",
