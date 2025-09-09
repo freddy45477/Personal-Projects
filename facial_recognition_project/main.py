@@ -17,7 +17,8 @@ from db_connection import (
     insert_relatives_contacts
 )
 from patient_input import (
-    collect_patients_info
+    collect_patients_info,
+    collect_patients_contact
 )
 
 def load_known_faces(known_faces_dir):
@@ -207,39 +208,18 @@ def register_face(current_frame, face_locations, known_face_encodings, known_fac
         if not os.path.exists("known_faces"):
             os.makedirs("known_faces")
         
+        #get the first name
         first_name = new_name.split()[0]
+        #get the last name
         last_name = new_name.split()[-1]
+
         middle_name = ""
     
-    #default input
-        personal_id = insert_patients(
-            first_name=first_name,
-            middle_name=middle_name,
-            last_name=last_name,
-            age=0,
-            sex="Other",
-            sex_other=None,
-            last_login=None
-        )
-
-
+        personal_id = collect_patients_info()
         print(f"New patient inserted with ID {personal_id}")
         
-        insert_contact(
-            personal_id,
-            phone_number="N/A",
-            email="N/A"
-        )
-
-        insert_relatives_contacts(
-            personal_id=personal_id,
-            relative_personal_id=None,
-            relative_first_name="N/A",
-            relative_last_name="N/A",
-            relationship_type="N/A",
-            phone_number="N/A",
-            email="N/A"
-        )
+        contact_id = collect_patients_contact(personal_id)
+        print (f"Contact inserted with ID {contact_id}")
 
         
         original_filename = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"

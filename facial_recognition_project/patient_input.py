@@ -52,3 +52,14 @@ def collect_patients_info():
     return personal_id
 
     
+def collect_patients_contact(personal_id):
+    phone_number = input("Enter Phone Number: ")
+    email = input("Enter Email: ")
+
+    contact_id = insert_contact(
+        personal_id=personal_id,
+        phone_number=phone_number,
+        email=email
+    )
+
+    return contact_id
