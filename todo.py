@@ -3,7 +3,7 @@ import os
 
 def load_tasks():
     #create an empty list to hold tasks
-    tasks = []
+    tasks = {}
     #check if the tasks.txt exists
     if os.path.exists("tasks.txt"):
         #open the file in read mode
@@ -27,29 +27,36 @@ def save_tasks(tasks):
 
 def task_option():
     while True:
-        print("(Add/View/Delete/Quit)")
-        choice = input("What would you like to do?: ").lower()
+        print("1. Add Task\n2. View Tasks\n3. Delete Task\n4. Quit")
+        choice = input("What would you like to do?: ")
 
-        if choice == "add":
+        if choice == "1":
             task_to_add = input("What task do you want to add?: ")
-            tasks.append(task_to_add)
+            tasks.append(f"task: {task_to_add}", "done: {False}")
             save_tasks(tasks) #saves task list after adding
             print("Task added and saved")
-        elif choice == "view":
-            if tasks == []:
+        elif choice == "2":
+            if tasks == {}:
                 print("No tasks available")
             else:
                 for i, task in enumerate(tasks, start=1):
                     print (f"{i}. {task}")
-        elif choice == "delete":
-            task_to_remove = input("What do you want to delete?: ")
-            if task_to_remove in tasks:
-                tasks.remove(task_to_remove)
-                save_tasks(tasks) #deletes task and save the new task list
-                print ("Task deleted and save")
+                print("\n")
+        elif choice == "3":
+            task_to_remove = int(input("What do you want to delete?(Number): "))
+            found = False
+            for i, task in enumerate(tasks, start=1):
+                if task_to_remove == i:
+                    tasks.remove(task)
+                    save_tasks(tasks) #deletes task and save the new task list
+                    print ("Task deleted and save")
+                    found = True
+                    break
+                if not found:
+                    print ("No task number detected")
             else:
                 print("task not found")
-        elif choice == "quit":
+        elif choice == "4":
             break
         else:
             print("Invalid Choice")
