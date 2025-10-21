@@ -1,0 +1,22 @@
+header{background-color: yellow;
+    text-align: center;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-image: url(homerlogorev.png); 
+    background-repeat: no-repeat; 
+    padding-bottom: 40px;}
+
+nav {float: left;
+    background-color: black;
+    width: 150px;
+    height: 1200px;
+    clear: left;}
+nav a:link{color: yellow;text-decoration: none;text-align: left;}
+nav a:visited{color: yellow;}
+ol {list-style-position: inside;
+    text-align: center;
+    font-size: larger;
+    color: blue;}
+h2{text-align: center;
+    border-bottom: 2px solid blue;}
+footer {text-align: center;}

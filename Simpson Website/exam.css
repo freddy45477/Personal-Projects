@@ -1,0 +1,20 @@
+header {background-color: coral; 
+    padding-top: 50px;padding-bottom: 50px;
+    text-align: center;
+background-size: 300px 200px;}
+
+nav {float: left;
+    background-color: saddlebrown;
+    width: 150px;
+    height: 900px;}
+nav a:link{color: yellow;text-decoration: none;}
+nav a:visited{color: yellow;}
+ul {list-style: none;}
+#adjust{margin-left: 150px;}
+main {background-color:white;}
+h1 {color: saddlebrown;border-bottom: 5px solid green;
+    text-align: center;}
+dt {font-weight: bold;
+    font-size: large;}
+footer{text-align: center;}
+
