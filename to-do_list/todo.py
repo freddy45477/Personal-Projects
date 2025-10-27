@@ -1,18 +1,28 @@
 import os
+import json
+import datetime
 
 
 def load_tasks():
     #create an empty list to hold tasks
-    tasks = {}
+    tasks = []
     #check if the tasks.txt exists
     if os.path.exists("tasks.txt"):
-        #open the file in read mode
-        with open("tasks.txt", "r") as file:
-            #for each line in the file
-            for line in file:
-                #remove the newline character and add task to the list
-                tasks.append(line.strip())
-    return tasks
+        #check if file is greater than 0 bytes
+        if os.path.getsize("tasks.txt") > 0:
+
+            #open the file in read mode
+            with open("tasks.txt", "r") as file:
+                #returns a python list or dict
+                #file is the object being read
+                return json.load(file)
+        else:
+            #else the file is there, but it is empty
+            return tasks
+    else:
+        #file doesn't exist at all, just return an empty list
+        return tasks
+        
 
 #make an empty task list
 tasks = load_tasks()
@@ -20,28 +30,43 @@ tasks = load_tasks()
 def save_tasks(tasks):
     #open or create a file name tasks.txt in write mode
     with open("tasks.txt", "w") as file:
-        #for each task in the task list
-        for task in tasks:
-            #write each task to the file with a new line
-            file.write(task + "\n")
+        #json dump converts the python object and turn it into json text and writes it directly to the file
+        #task is the data you want to save
+        #file is the object where it will be written
+        #indent format the json for 4 spcaes
+        json.dump(tasks, file, indent=4)
 
 def task_option():
     while True:
-        print("1. Add Task\n2. View Tasks\n3. Delete Task\n4. Quit")
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print("1. Add Task\n2. View Tasks\n3. Delete Task\n4. Mark task as done/undone\n5. Quit")
         choice = input("What would you like to do?: ")
 
         if choice == "1":
             task_to_add = input("What task do you want to add?: ")
-            tasks.append(f"task: {task_to_add}", "done: {False}")
+            tasks.append({'task': task_to_add, 'done': False, 'created_at': current_time, 'updated_at': None})
             save_tasks(tasks) #saves task list after adding
             print("Task added and saved")
         elif choice == "2":
+            print("1. All\n2. Not Done Only\n3. Done Only")
+            view_choice = int(input("How do you want to view tasks?: "))
+            print("=================")
             if tasks == {}:
                 print("No tasks available")
             else:
                 for i, task in enumerate(tasks, start=1):
-                    print (f"{i}. {task}")
-                print("\n")
+                    if view_choice == 1:
+                        if task['done'] == False:
+                            print (f'[✗]{i}.{task['task']}\nCreated: {task['created_at']}\nUpdated: {task['updated_at']}')
+                        else:
+                            print (f'[✓]{i}.{task['task']}\nCreated: {task['created_at']}\nUpdated: {task['updated_at']}')
+                    elif view_choice == 2:
+                        if task['done'] ==False:
+                            print (f'[✗]{i}.{task['task']}\nCreated: {task['created_at']}\nUpdated: {task['updated_at']}')
+                    elif view_choice == 3:
+                        if task['done'] == True:
+                            print (f'[✓]{i}.{task['task']}\nCreated: {task['created_at']}\nUpdated: {task['updated_at']}')
+                print("=================")
         elif choice == "3":
             task_to_remove = int(input("What do you want to delete?(Number): "))
             found = False
@@ -52,14 +77,40 @@ def task_option():
                     print ("Task deleted and save")
                     found = True
                     break
-                if not found:
+                if found == False:
                     print ("No task number detected")
-            else:
-                print("task not found")
         elif choice == "4":
+               print("Your Tasks:")
+               print("=================")
+               for i, task in enumerate(tasks, start=1):
+                    if task['done'] == False:
+                        print (f'[✗]{i}.{task['task']}')
+                    else:
+                        print (f'[✓]{i}.{task['task']}')
+               print("=================")
+               task_choice = int(input("Press 0 for no changes.\nWhich task number do you want to mark as done or undone?: "))
+
+               if task_choice == 0:
+                   continue
+               
+               index = task_choice - 1
+               selected_task = tasks[index]
+               if selected_task['done'] == False:
+                   selected_task['done'] = True
+                   selected_task['updated_at'] = current_time
+                   save_tasks(tasks)
+               else: 
+                   selected_task['done'] = False
+                   selected_task['updated_at'] = current_time
+                   save_tasks(tasks)
+                 
+        elif choice == "5":
             break
+        
         else:
             print("Invalid Choice")
+
+
 
     
 task_option()
