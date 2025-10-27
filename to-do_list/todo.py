@@ -44,29 +44,72 @@ def task_option():
 
         if choice == "1":
             task_to_add = input("What task do you want to add?: ")
-            tasks.append({'task': task_to_add, 'done': False, 'created_at': current_time, 'updated_at': None})
+            tasks.append({'task': task_to_add, 'done': False, 'created_at': current_time, 'updated_at': '0000-00-00 00:00:00'})
             save_tasks(tasks) #saves task list after adding
             print("Task added and saved")
         elif choice == "2":
-            print("1. All\n2. Not Done Only\n3. Done Only")
-            view_choice = int(input("How do you want to view tasks?: "))
             print("=================")
+            print("1. All\n2. Not Done Only\n3. Done Only\n4. Search")
+            view_choice = int(input("How do you want to view tasks?: "))
+
+            
+
+
+            
+            filtered_tasks = []
+
             if tasks == {}:
                 print("No tasks available")
             else:
                 for i, task in enumerate(tasks, start=1):
                     if view_choice == 1:
-                        if task['done'] == False:
-                            print (f'[✗]{i}.{task['task']}\nCreated: {task['created_at']}\nUpdated: {task['updated_at']}')
-                        else:
-                            print (f'[✓]{i}.{task['task']}\nCreated: {task['created_at']}\nUpdated: {task['updated_at']}')
+                        filtered_tasks = tasks
                     elif view_choice == 2:
                         if task['done'] ==False:
-                            print (f'[✗]{i}.{task['task']}\nCreated: {task['created_at']}\nUpdated: {task['updated_at']}')
+                            filtered_tasks.append(task)
                     elif view_choice == 3:
                         if task['done'] == True:
-                            print (f'[✓]{i}.{task['task']}\nCreated: {task['created_at']}\nUpdated: {task['updated_at']}')
+                            filtered_tasks.append(task)
+                    elif view_choice == 4:
+                        print("=================")
+                        search_input = input("Search Keyword/Letter(Press Enter to skip): ")
+                        if search_input == "":
+                            pass
+                        else:
+                            if search_input.lower() in task['task'].lower():
+                                filtered_tasks.append(task)
+                    else:
+                        print("print invalid choice")
+                    
+                
+                
                 print("=================")
+                print("1. Alphabetically\n2. Creation Date\n3, Update Date\n4. None")
+                sort_choice = int(input("How do you want to sort the tasks: "))
+                    
+                if sort_choice == 1:
+                    #sort the tasks alphabetically, lambda is there as an anonymous function (it is just there and needed for sort ot work)
+                    #t is the placeholder for each item in your list, t['task'] is  returning the the items with task name 
+                    filtered_tasks.sort(key = lambda t:t['task'].lower())
+                elif sort_choice == 2:
+                    filtered_tasks.sort(key = lambda t:t['created_at'])
+                elif sort_choice == 3: 
+                    filtered_tasks.sort(key = lambda t:t['updated_at'])
+                
+                
+                print("=================")
+                for i, task in enumerate(filtered_tasks, start=1):
+                    if task['done'] == True:
+                        mark = "✓"
+                    else:
+                        mark = "✗"
+                    print(f"[{mark}] {i}. {task['task']}")
+                    print (f"Creation Date: {task['created_at']}")
+                    print (f"Updated Date: {task['updated_at']}")
+                print("=================")
+
+
+            
         elif choice == "3":
             task_to_remove = int(input("What do you want to delete?(Number): "))
             found = False
