@@ -1,5 +1,6 @@
 import mysql.connector
 from PIL import Image #import to pilloe to manipulate images
+import shutil
 import io
 
 full_image = Image.open
@@ -90,7 +91,7 @@ def insert_contact(personal_id, phone_number, email):
     print(f"Medication added: {phone_number}, {email}.")
     return new_contact_id
 
-def insert_relatives_contacts(personal_id, relative_personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, ):
+def insert_relatives_contacts(relative_id, personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail=None, full_image_path=None):
     #get db connection
     conn = get_db_connection()
     if conn is None:
@@ -103,22 +104,58 @@ def insert_relatives_contacts(personal_id, relative_personal_id, relative_first_
     #make sql query and placeholders
     
     sql_query = """
-    #INSERT INTO relatives_contacts(personal_id, relative_personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email)
+    #INSERT INTO relatives_contacts(relative_id, personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail, full_image_path)
     #VALUES (%s, %s, %s, %s, %s, %s, %s)
     #"""
     #make a tuple for the values
-    values = (personal_id, relative_personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email)
+    values = (relative_id, personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail, full_image_path)
 
     #execute the query and values
     cursor.execute(sql_query, values)
     #save changes
     conn.commit()
     #get the new medication id
-    new_relative_contact_id = cursor.lastrowid
+    new_relative_id = cursor.lastrowid
     #close cursor
     cursor.close()
     #close connection
     conn.close()
     
     print(f"contacts added: {relative_first_name} {relative_last_name}, {relationship_type}.")
-    return new_relative_contact_id
+    return new_relative_id
+
+def update_relative_image(relative_id, thumbnail, full_image_path):
+    #get the connection to the db
+    conn = get_db_connection()
+    #if no connection, print msg
+    if conn is None:
+        print("Cannot insert contact without database connection")
+        return
+    #open the cursor
+    cursor = conn.cursor()
+    
+    #make the sql_query to insert into the db
+    sql_query = """
+    UPDATE relatives_contacts
+    SET thumbnail = %s,
+        full_image_path = %s
+    WHERE relative_id = %s
+    """
+    #get the values of the input
+    values = (thumbnail, full_image_path, relative_id)
+
+    #execute the sql query with the values
+    cursor.execute(sql_query, values)
+    #commit the changes, save them
+    conn.commit()
+
+    #close cursor(interaction with python and mysql)
+    cursor.close()
+    #close connection
+    conn.close()
+
+    print(f"image updated for relative_id {relative_id}")
+    return True
+
+
+
