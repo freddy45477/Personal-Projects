@@ -17,11 +17,11 @@ def ensure_patient_folder(personal_id):
     
     return patient_dir
 
-def save_image_for_patient(personal_id, image_path):
+def save_image_for_patient(personal_id, relative_id, image_path):
     #check if the relative folder is ther
     patient_folder = ensure_patient_folder(personal_id)
     #then put the image file in there
-    uploaded_image_path = os.path.join(patient_folder, "face.jpg")
+
     
     #read the images in the path
     image = cv2.imread(image_path)
@@ -30,8 +30,30 @@ def save_image_for_patient(personal_id, image_path):
         print("Error: Image could not be read")
         return
     #write to the folder to save the image there
-    cv2.imwrite(uploaded_image_path, image)
-    print(f"image saved to {uploaded_image_path}")
+
+    #create a thumbnial 
+    thumbnail = cv2.resize(image, (100, 100))
+
+    #convert the thumbnail to bytes for MYSQL Blob
+    _, buffer = cv2.imencode('.jpg', thumbnail)
+    thumbnail_bytes = buffer.tobytes()
+
+
+    #build full image filename
+    filename = f"relative_face{relative_id}.jpg"
+    full_image_path = os.path.join(patient_folder, filename)
+
+    #save the full image to the relative_images folder
+    cv2.imwrite(full_image_path, image)
+    print(f"image saved to {full_image_path}")
+
+    #return both so you can insert into database later
+    return thumbnail_bytes, full_image_path
+
+
+    
+
+
 
     
 
