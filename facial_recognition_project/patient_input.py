@@ -63,3 +63,30 @@ def collect_patients_contact(personal_id):
     )
 
     return contact_id
+
+def collect_relatives_contact(personal_id):
+    print ("\n--- Add a Relative ---")
+
+    #ask the user's relative information
+    first_name = input("Relative First Name: ").strip()
+    last_name = input("Relative Last Name: ").strip()
+    relationship_type = input("Relationship Type: ").strip()
+    phone_number = input("Phone Number: ").strip()
+    email = input("Email: ").strip()
+
+    #insert the information into the db
+    relative_id = insert_relatives_contacts(
+        personal_id=personal_id,
+        relative_first_name=first_name,
+        relative_last_name=last_name,
+        relationship_type=relationship_type,
+        phone_number=phone_number,
+        email=email,
+        thumbnail=None,
+        full_image_path=None
+    )
+
+    print(f"relative added with ID {relative_id}.")
+    return relative_id
+
+
