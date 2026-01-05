@@ -14,11 +14,13 @@ last_unknown_face_path = "" #empty to hold the path of the saved unknown
 from db_connection import (
     insert_patients,
     insert_contact,
-    insert_relatives_contacts
+    insert_relatives_contacts,
+    get_relatives_for_patient
 )
 from patient_input import (
     collect_patients_info,
-    collect_patients_contact
+    collect_patients_contact,
+    collect_relatives_contact
 )
 
 def load_known_faces(known_faces_dir):
@@ -200,26 +202,53 @@ def register_face(current_frame, face_locations, known_face_encodings, known_fac
     #if matches, face is already registered
     if True in matches:
         print("face is already registered")
+        match_index = matches.index(True)
+        personal_id = known_faces_names[match_index]
+
+        relatives = get_relatives_for_patient(personal_id)
+
+        if relatives:
+            print("\nRelatives on file:")
+            for r in relatives:
+                print(f"- {r['relative_first_name']} {r['relative_last_name']} ({r['relationship_type']})")
+        else:
+            print ("No relatives on file.")
     else:
-        #else ask the user to put their name and append their encoding and name
-        new_name = input("enter full name: ")
-        known_face_encodings.append(face_encoding)
-        known_faces_names.append(new_name)
+
         if not os.path.exists("known_faces"):
             os.makedirs("known_faces")
-        
+        #else ask the user to put their name and append their encoding and name
+        #new_name = input("enter full name: ")
+        personal_id = collect_patients_info()
+        known_face_encodings.append(face_encoding)
+        known_faces_names.append(personal_id)
+
+
+        """"
         #get the first name
         first_name = new_name.split()[0]
         #get the last name
         last_name = new_name.split()[-1]
 
         middle_name = ""
-    
-        personal_id = collect_patients_info()
-        print(f"New patient inserted with ID {personal_id}")
-        
+        """
+
+
         contact_id = collect_patients_contact(personal_id)
         print (f"Contact inserted with ID {contact_id}")
+        
+        while True:
+            relative_query = input("Do you want to add a relative(Y/N): ").lower().strip()
+            if relative_query == "y":
+                relative_id = collect_relatives_contact(personal_id=personal_id, image_path=last_unknown_face_path)
+            
+            elif relative_query == "n":
+                break
+
+            else:
+                print("Invalid Choice")
+           
+            
 
         
         original_filename = f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
@@ -230,7 +259,7 @@ def register_face(current_frame, face_locations, known_face_encodings, known_fac
             last_unknown_face_path = None  # reset the path after removing the file
 
         #makes a image file on the name they put and puts in the known faces directory
-        filename = f"{new_name}.jpg"
+        filename = f"{personal_id}.jpg"
         filepath = os.path.join("known_faces", filename)
         cv2.imwrite(filepath, face_image)
         print("new face registered")

@@ -88,10 +88,10 @@ def insert_contact(personal_id, phone_number, email):
     #close connection
     conn.close()
     
-    print(f"Medication added: {phone_number}, {email}.")
+    print(f"Contacts added: {phone_number}, {email}.")
     return new_contact_id
 
-def insert_relatives_contacts(relative_id, personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail=None, full_image_path=None):
+def insert_relatives_contacts(personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail=None, full_image_path=None):
     #get db connection
     conn = get_db_connection()
     if conn is None:
@@ -104,11 +104,11 @@ def insert_relatives_contacts(relative_id, personal_id, relative_first_name, rel
     #make sql query and placeholders
     
     sql_query = """
-    #INSERT INTO relatives_contacts(relative_id, personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail, full_image_path)
-    #VALUES (%s, %s, %s, %s, %s, %s, %s)
+    #INSERT INTO relatives_contacts(personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail, full_image_path)
+    #VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     #"""
     #make a tuple for the values
-    values = (relative_id, personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail, full_image_path)
+    values = (personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail, full_image_path)
 
     #execute the query and values
     cursor.execute(sql_query, values)
@@ -157,5 +157,43 @@ def update_relative_image(relative_id, thumbnail, full_image_path):
     print(f"image updated for relative_id {relative_id}")
     return True
 
+def get_relatives_for_patient(personal_id):
+        #get the connection to the db
+    conn = get_db_connection()
+    #if no connection, print msg
+    if conn is None:
+        print("Cannot fetch relatives without database connection")
+        return []
+    #open the cursor
+    cursor = conn.cursor()
+
+    #make sql query and placeholders
+    
+    sql_query = "SELECT * FROM relatives_contacts WHERE personal_id = %s"
+    #make cursor execute the query
+    cursor.execute(sql_query, (personal_id,))
+    #fetch all matching rows
+    rows = cursor.fetchall()
+
+    #close the cursor
+    cursor.close()
+    #close the connection
+    conn.close()
+    #convert each row into a dictionary
+    relatives_list = []
+    for row in rows:
+        relative = {
+            "relative_id": row[0],
+            "personal_id": row[1],
+            "first_name": row[2],
+            "last_name": row[3],
+            "relationship_type": row[4],
+            "phone_number": row[5],
+            "email": row[6],
+            "thumbnail": row[7],
+            "full_image_path": row[8]
+        }
+        relatives_list.append(relative)
+    return relatives_list
 
 

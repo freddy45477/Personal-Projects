@@ -1,4 +1,10 @@
+import os
+from image_handler import (
+    save_image_for_patient
+)
+
 from db_connection import (
+    get_db_connection,
     insert_patients,
     insert_contact,
     insert_relatives_contacts
@@ -24,20 +30,23 @@ def collect_patients_info():
     
     while True:
         sex = input("What is your sex(M/F/Others): ").strip().capitalize()
-        if sex == "Others":
+        if sex in ("O", "Other","Others"):
+            sex = "Other"
             sex_other = input("If others, what do you identify as: ")
             break
         elif sex in ("M", "Male"):
+            sex = "Male"
             sex_other = None
             break
         elif sex in ("F", "Female"):
+            sex = "Female"
             sex_other = None 
             break
         else:
             print("invalid input")
 
 
-    last_login = datetime.now()
+    last_login = datetime.datetime.now()
 
     personal_id = insert_patients(
         first_name=first_name,
@@ -48,6 +57,8 @@ def collect_patients_info():
         sex_other=sex_other,
         last_login=last_login
     )
+
+    print(f"Patient added with ID {personal_id}.")
 
     return personal_id
 
@@ -62,9 +73,11 @@ def collect_patients_contact(personal_id):
         email=email
     )
 
+    print(f"Patient Contact added with ID {personal_id}.")
+
     return contact_id
 
-def collect_relatives_contact(personal_id):
+def collect_relatives_contact(personal_id, image_path):
     print ("\n--- Add a Relative ---")
 
     #ask the user's relative information
@@ -85,8 +98,34 @@ def collect_relatives_contact(personal_id):
         thumbnail=None,
         full_image_path=None
     )
-
     print(f"relative added with ID {relative_id}.")
+
+
+    full_image_path, thumbnail_bytes = save_image_for_patient(personal_id, relative_id, image_path)
+
+    if thumbnail_bytes is None or full_image_path is None:
+        print(f"Skipping database update for relative ID {relative_id} because image could not be saved")
+    else:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        sql_query = """
+        UPDATE relatives_contacts
+        SET thumbnail = %s,
+            full_image_path = %s
+        WHERE relative_id = %s
+        """
+        
+        values = (thumbnail_bytes, full_image_path, relative_id)
+        cursor.execute(sql_query, values)
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        print(f"relative image updated for ID {relative_id}.")
+
+
     return relative_id
 
-
+def add_relative_image(personal_id, relative_id, image_path):
+    
+    pass

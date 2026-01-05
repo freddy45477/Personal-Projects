@@ -24,11 +24,12 @@ def save_image_for_patient(personal_id, relative_id, image_path):
 
     
     #read the images in the path
+    image_path = os.path.abspath(image_path)
     image = cv2.imread(image_path)
     #if there is none, print msg
     if image is None:
         print("Error: Image could not be read")
-        return
+        return None, None
     #write to the folder to save the image there
 
     #create a thumbnial 
