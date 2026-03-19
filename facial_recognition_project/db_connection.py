@@ -1,199 +1,378 @@
 import mysql.connector
-from PIL import Image #import to pilloe to manipulate images
-import shutil
+from PIL import Image
 import io
 
-full_image = Image.open
-
-
-
-#get connection from mysqk
+# Get connection from MySQL
 def get_db_connection():
     try:
         mydb = mysql.connector.connect(
-            host = "localhost",
-            user = "root",
-            password = "password",
-            database = "face_recognition_db"
+            host="localhost",
+            user="root",
+            password="password",
+            database="face_recognition_db"
         )
         print("Successfully connected to the database")
-        return mydb  # <--- RETURN the connection
+        return mydb
     except mysql.connector.Error as err:
         if err.errno == mysql.connector.errorcode.ER_ACCESS_DENIED_ERROR:
-           print("Credentials not correct")
+            print("Credentials not correct")
         elif err.errno == mysql.connector.errorcode.ER_BAD_DB_ERROR:
             print("Database does not exist")
         else:
             print(err)
-        return None  # <--- Return None if connection fails
+        return None
+
 
 def insert_patients(first_name, middle_name, last_name, age, sex, sex_other, last_login):
-    # Connect to the database
     conn = get_db_connection()
     if conn is None:
         print("Cannot insert patient without a database connection.")
-        return
+        return None
 
-    # Cursor allows Python to interact with the database
     cursor = conn.cursor()
 
-    # Query with placeholders
     sql_query = """
     INSERT INTO patients(first_name, middle_name, last_name, age, sex, sex_other, last_login)
     VALUES (%s, %s, %s, %s, %s, %s, %s)
     """
-
-    # Tuple of values
     values = (first_name, middle_name, last_name, age, sex, sex_other, last_login)
 
-    # Execute and commit
     cursor.execute(sql_query, values)
-    conn.commit()  # <--- Save changes
+    conn.commit()
 
     new_id = cursor.lastrowid
     cursor.close()
-    conn.close()  # <--- Close the connection
+    conn.close()
 
     print(f"New patient {first_name} {last_name} registered successfully")
     return new_id
 
 
+def get_patient_by_id(personal_id):
+    conn = get_db_connection()
+    if conn is None:
+        print("Cannot query without a database connection.")
+        return None
+
+    cursor = conn.cursor(dictionary=True)
+
+    sql_query = """
+    SELECT p.*, c.phone_number, c.email
+    FROM patients p
+    LEFT JOIN contacts c ON p.personal_id = c.personal_id
+    WHERE p.personal_id = %s
+    """
+    cursor.execute(sql_query, (personal_id,))
+    patient = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return patient
+
+
+def get_patient_by_name(name):
+    """Search patient by first or last name"""
+    conn = get_db_connection()
+    if conn is None:
+        return None
+
+    cursor = conn.cursor(dictionary=True)
+    sql_query = """
+    SELECT p.*, c.phone_number, c.email
+    FROM patients p
+    LEFT JOIN contacts c ON p.personal_id = c.personal_id
+    WHERE p.first_name LIKE %s OR p.last_name LIKE %s
+    """
+    search = f"%{name}%"
+    cursor.execute(sql_query, (search, search))
+    patients = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return patients
+
+
+def get_relatives_by_patient(personal_id):
+    """Get all relatives for a given patient"""
+    conn = get_db_connection()
+    if conn is None:
+        return []
+
+    cursor = conn.cursor(dictionary=True)
+    sql_query = """
+    SELECT * FROM relatives_contacts
+    WHERE personal_id = %s
+    """
+    cursor.execute(sql_query, (personal_id,))
+    relatives = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return relatives
+
 
 def insert_contact(personal_id, phone_number, email):
-    #get db connection
     conn = get_db_connection()
     if conn is None:
         print("Cannot insert contact without database connection")
-        return
-    
-    #open the cursor
+        return None
+
     cursor = conn.cursor()
 
-    #make sql query and placeholders
     sql_query = """
     INSERT INTO contacts(personal_id, phone_number, email)
     VALUES (%s, %s, %s)
     """
-    #make a tuple for the values
     values = (personal_id, phone_number, email)
 
-    #execute the query and values
     cursor.execute(sql_query, values)
-    #save changes
     conn.commit()
-    #get the new medication id
+
     new_contact_id = cursor.lastrowid
-    #close cursor
     cursor.close()
-    #close connection
     conn.close()
-    
-    print(f"Contacts added: {phone_number}, {email}.")
+
+    print(f"Contact added: {phone_number}, {email}.")
     return new_contact_id
 
-def insert_relatives_contacts(personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail=None, full_image_path=None):
-    #get db connection
+
+# FIX: Removed relative_id from parameters (it's AUTO_INCREMENT in MySQL)
+# FIX: SQL query was accidentally commented out inside the triple-quoted string
+def insert_relatives_contacts(personal_id, relative_first_name, relative_last_name,
+                               relationship_type, phone_number, email,
+                               thumbnail=None, full_image_path=None):
     conn = get_db_connection()
     if conn is None:
         print("Cannot insert contact without database connection")
-        return
-    
-    #open the cursor
+        return None
+
     cursor = conn.cursor()
 
-    #make sql query and placeholders
-    
     sql_query = """
-    #INSERT INTO relatives_contacts(personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail, full_image_path)
-    #VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    #"""
-    #make a tuple for the values
-    values = (personal_id, relative_first_name, relative_last_name, relationship_type, phone_number, email, thumbnail, full_image_path)
+    INSERT INTO relatives_contacts(personal_id, relative_first_name, relative_last_name,
+                                    relationship_type, phone_number, email, thumbnail, full_image_path)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    values = (personal_id, relative_first_name, relative_last_name,
+              relationship_type, phone_number, email, thumbnail, full_image_path)
 
-    #execute the query and values
     cursor.execute(sql_query, values)
-    #save changes
     conn.commit()
-    #get the new medication id
+
     new_relative_id = cursor.lastrowid
-    #close cursor
     cursor.close()
-    #close connection
     conn.close()
-    
-    print(f"contacts added: {relative_first_name} {relative_last_name}, {relationship_type}.")
+
+    print(f"Relative added: {relative_first_name} {relative_last_name}, {relationship_type}.")
     return new_relative_id
 
+
 def update_relative_image(relative_id, thumbnail, full_image_path):
-    #get the connection to the db
     conn = get_db_connection()
-    #if no connection, print msg
     if conn is None:
-        print("Cannot insert contact without database connection")
-        return
-    #open the cursor
+        print("Cannot update image without database connection")
+        return False
+
     cursor = conn.cursor()
-    
-    #make the sql_query to insert into the db
+
     sql_query = """
     UPDATE relatives_contacts
     SET thumbnail = %s,
         full_image_path = %s
     WHERE relative_id = %s
     """
-    #get the values of the input
     values = (thumbnail, full_image_path, relative_id)
 
-    #execute the sql query with the values
     cursor.execute(sql_query, values)
-    #commit the changes, save them
     conn.commit()
 
-    #close cursor(interaction with python and mysql)
     cursor.close()
-    #close connection
     conn.close()
 
-    print(f"image updated for relative_id {relative_id}")
+    print(f"Image updated for relative_id {relative_id}")
     return True
 
-def get_relatives_for_patient(personal_id):
-        #get the connection to the db
+
+def update_patient_last_login(personal_id):
+    """Update last login timestamp when patient is recognized"""
+    import datetime
     conn = get_db_connection()
-    #if no connection, print msg
     if conn is None:
-        print("Cannot fetch relatives without database connection")
-        return []
-    #open the cursor
+        return False
+
+    cursor = conn.cursor()
+    sql_query = """
+    UPDATE patients SET last_login = %s WHERE personal_id = %s
+    """
+    cursor.execute(sql_query, (datetime.datetime.now(), personal_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return True
+
+
+def delete_patient(personal_id):
+    """
+    Delete a patient and all related records (contacts, relatives).
+    The ON DELETE CASCADE on FK constraints handles relatives and contacts automatically.
+    """
+    conn = get_db_connection()
+    if conn is None:
+        print("Cannot delete patient without database connection")
+        return False
+
     cursor = conn.cursor()
 
-    #make sql query and placeholders
-    
-    sql_query = "SELECT * FROM relatives_contacts WHERE personal_id = %s"
-    #make cursor execute the query
-    cursor.execute(sql_query, (personal_id,))
-    #fetch all matching rows
-    rows = cursor.fetchall()
+    # Get patient name for logging before deleting
+    cursor.execute("SELECT first_name, last_name FROM patients WHERE personal_id = %s",
+                   (personal_id,))
+    row = cursor.fetchone()
+    name = f"{row[0]} {row[1]}" if row else f"ID {personal_id}"
 
-    #close the cursor
+    cursor.execute("DELETE FROM patients WHERE personal_id = %s", (personal_id,))
+    conn.commit()
+
+    affected = cursor.rowcount
     cursor.close()
-    #close the connection
     conn.close()
-    #convert each row into a dictionary
-    relatives_list = []
-    for row in rows:
-        relative = {
-            "relative_id": row[0],
-            "personal_id": row[1],
-            "first_name": row[2],
-            "last_name": row[3],
-            "relationship_type": row[4],
-            "phone_number": row[5],
-            "email": row[6],
-            "thumbnail": row[7],
-            "full_image_path": row[8]
-        }
-        relatives_list.append(relative)
-    return relatives_list
+
+    if affected:
+        print(f"Patient {name} (ID {personal_id}) deleted — contacts and relatives removed via CASCADE.")
+        return True
+    else:
+        print(f"No patient found with ID {personal_id}")
+        return False
 
 
+def delete_relative(relative_id):
+    """Delete a single relative record."""
+    conn = get_db_connection()
+    if conn is None:
+        return False
+
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM relatives_contacts WHERE relative_id = %s", (relative_id,))
+    conn.commit()
+    affected = cursor.rowcount
+    cursor.close()
+    conn.close()
+    print(f"Relative ID {relative_id} deleted.")
+    return affected > 0
+
+
+# ── Calendar / Events ─────────────────────────────────────────────────────────
+
+def create_events_table():
+    """Create the events table if it doesn't exist yet."""
+    conn = get_db_connection()
+    if conn is None:
+        return False
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS patient_events (
+            event_id      INT          NOT NULL AUTO_INCREMENT,
+            personal_id   INT          NOT NULL,
+            title         VARCHAR(120) NOT NULL,
+            description   TEXT         DEFAULT NULL,
+            event_date    DATE         NOT NULL,
+            start_time    TIME         DEFAULT NULL,
+            end_time      TIME         DEFAULT NULL,
+            color         VARCHAR(20)  DEFAULT '#2DD4BF',
+            all_day       TINYINT(1)   DEFAULT 0,
+            created_at    DATETIME     DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (event_id),
+            CONSTRAINT fk_event_patient
+                FOREIGN KEY (personal_id) REFERENCES patients(personal_id)
+                ON DELETE CASCADE ON UPDATE CASCADE,
+            INDEX idx_events_date (personal_id, event_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """)
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return True
+
+
+def get_events_for_month(personal_id, year, month):
+    """Return all events for a patient in a given month."""
+    conn = get_db_connection()
+    if conn is None:
+        return []
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT * FROM patient_events
+        WHERE personal_id = %s
+          AND YEAR(event_date)  = %s
+          AND MONTH(event_date) = %s
+        ORDER BY event_date, start_time
+    """, (personal_id, year, month))
+    events = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return events
+
+
+def get_events_for_day(personal_id, date_str):
+    """Return all events for a patient on a specific date (YYYY-MM-DD)."""
+    conn = get_db_connection()
+    if conn is None:
+        return []
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT * FROM patient_events
+        WHERE personal_id = %s AND event_date = %s
+        ORDER BY all_day DESC, start_time
+    """, (personal_id, date_str))
+    events = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return events
+
+
+def insert_event(personal_id, title, description, event_date,
+                 start_time, end_time, color, all_day):
+    conn = get_db_connection()
+    if conn is None:
+        return None
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO patient_events
+            (personal_id, title, description, event_date, start_time, end_time, color, all_day)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """, (personal_id, title, description, event_date,
+          start_time, end_time, color, all_day))
+    conn.commit()
+    event_id = cursor.lastrowid
+    cursor.close()
+    conn.close()
+    print(f"Event '{title}' created on {event_date}")
+    return event_id
+
+
+def update_event(event_id, title, description, event_date,
+                 start_time, end_time, color, all_day):
+    conn = get_db_connection()
+    if conn is None:
+        return False
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE patient_events
+        SET title=%s, description=%s, event_date=%s,
+            start_time=%s, end_time=%s, color=%s, all_day=%s
+        WHERE event_id=%s
+    """, (title, description, event_date,
+          start_time, end_time, color, all_day, event_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return True
+
+
+def delete_event(event_id):
+    conn = get_db_connection()
+    if conn is None:
+        return False
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM patient_events WHERE event_id = %s", (event_id,))
+    conn.commit()
+    affected = cursor.rowcount
+    cursor.close()
+    conn.close()
+    return affected > 0
